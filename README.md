@@ -1,33 +1,59 @@
-# AUV Simulation with Deep Q-Learning
+# AUV Simulator
 
-A Next.js application that simulates an Autonomous Underwater Vehicle (AUV) using Deep Q-Learning for pathfinding. The AUV learns to navigate through obstacles to reach a target position.
+A Next.js application that simulates an Autonomous Underwater Vehicle (AUV) using A\* pathfinding algorithm. The AUV navigates through obstacles to reach a target position efficiently.
 
 ## Features
 
-- 🤖 Deep Q-Learning based navigation
-- 🎯 Dynamic target positioning
-- 🚧 Obstacle avoidance
+- 🎯 Intelligent A\* pathfinding
+- 🚧 Dynamic obstacle placement
+- 🎮 Interactive start/goal positioning
 - 🌓 Dark/Light theme support
-- 📊 Real-time debugging panel
+- 📊 Real-time control panel
+- 📍 Path visualization
+- 🎨 Smooth animations and gradients
+
+## How It Works
+
+The simulator uses several key components:
+
+### 1. Pathfinding Algorithm (utils/pathfinding.ts)
+
+- Implements A\* search algorithm
+- Uses Manhattan distance heuristic
+- Efficiently finds optimal paths avoiding obstacles
+- Returns step-by-step directions for the AUV
+
+### 2. Movement Control (utils/auv_ai.ts)
+
+- Manages AUV movement decisions
+- Caches paths for performance
+- Translates pathfinding results into directional moves
+- Handles path recalculation when needed
+
+### 3. Simulation Interface (components/Simulation.tsx)
+
+- Renders the interactive grid
+- Handles canvas-based visualization
+- Manages simulation state
+- Processes user interactions
+
+### 4. Control Panel (components/DebuggingPanel.tsx)
+
+- Provides simulation controls
+- Displays real-time status
+- Manages obstacle generation
+- Controls start/goal placement
 
 ## Getting Started
-
-### Prerequisites
-
-- Python 3.10 or higher
-- Node.js 16 or higher
-- npm or yarn
-
-### Installation
 
 1. Clone the repository:
 
 ```bash
 git clone <your-repo-url>
-cd auv-simulation
+cd auv-simulator
 ```
 
-2. Install JavaScript dependencies:
+2. Install dependencies:
 
 ```bash
 npm install
@@ -35,51 +61,7 @@ npm install
 yarn install
 ```
 
-3. Create and activate Python virtual environment:
-
-```bash
-python -m venv myenv
-source myenv/bin/activate  # On Windows use: myenv\Scripts\activate
-```
-
-4. Install Python dependencies:
-
-```bash
-pip install torch tensorflow tensorflowjs numpy
-```
-
-## Training the AI Model
-
-### Step 1: Train PyTorch Model
-
-The DQN model is first trained using PyTorch:
-
-```bash
-python scripts/train_dqn.py
-```
-
-This will:
-
-- Train the model for 300 episodes
-- Save the trained model as `models/pytorch/auv_dqn_model.pth`
-- Show training progress and rewards
-
-### Step 2: Convert to TensorFlow
-
-Convert the PyTorch model to TensorFlow format:
-
-```bash
-python scripts/convert_pytorch_to_tf.py
-```
-
-This creates:
-
-- TensorFlow SavedModel in `models/tensorflow/saved_model`
-- TensorFlow.js model in `public/auv_dqn_model_js`
-
-### Step 3: Start the Application
-
-Run the development server:
+3. Start the development server:
 
 ```bash
 npm run dev
@@ -91,37 +73,38 @@ Visit [http://localhost:3000](http://localhost:3000) to see the simulation.
 
 ## Usage
 
-- 🎮 Click "Start" to begin the simulation
-- 🎯 Use "Random Goal" to change target position
-- 🚧 Add obstacles using "Add Random Obstacle"
-- 📊 Monitor AUV's position and actions in the Debug Panel
-- 🌓 Toggle dark/light theme with the theme button
+1. **Setup Environment**:
 
-## Model Architecture
+   - Place start position (green)
+   - Place goal position (blue)
+   - Add obstacles (red)
 
-The DQN model consists of:
+2. **Control Simulation**:
 
-- Input layer (4 neurons): Current X, Y and Target X, Y
-- Hidden layers: 2 fully connected layers (128 neurons each)
-- Output layer (4 neurons): Left, Right, Up, Down actions
+   - Click "Start Simulation" to begin
+   - Use "Stop Simulation" to pause
+   - "Reset Simulation" to clear path
+   - Add/remove obstacles as needed
+
+3. **Additional Features**:
+   - Toggle dark/light theme
+   - Generate random obstacles
+   - Randomize start/goal positions
+   - Monitor AUV's position and moves
 
 ## Customization
 
-You can modify training parameters in `scripts/train_dqn.py`:
+You can modify simulation parameters in:
 
-- Episodes
-- Learning rate
-- Reward values
-- Network architecture
-
-## Development
-
-To modify the simulation:
-
-1. Edit training parameters in `scripts/train_dqn.py`
-2. Retrain the model following steps above
-3. The simulation will use the new model automatically
+- `utils/constants.ts`: Grid size and dimensions
+- `utils/pathfinding.ts`: Pathfinding behavior
+- `components/Simulation.tsx`: Visualization settings
+- `components/DebuggingPanel.tsx`: Control options
 
 ## License
 
-[Your License]
+MIT License
+
+## Author
+
+Beny Dishon K
