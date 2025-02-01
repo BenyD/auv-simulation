@@ -5,7 +5,7 @@ import { predictNextMove } from "@/utils/auv_ai";
 import DebuggingPanel from "./DebuggingPanel";
 import { GRID_SIZE } from "@/utils/constants";
 import { useTheme } from "@/utils/ThemeProvider";
-import { geistSans } from "@/app/layout";
+import { geistSans } from "@/utils/fonts";
 
 // Update initial positions for the smaller grid
 const DEFAULT_START = { x: 4, y: 10 };
