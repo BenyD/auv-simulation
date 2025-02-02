@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { predictNextMove } from "@/utils/auv_ai";
 import DebuggingPanel from "./DebuggingPanel";
 import { GRID_SIZE } from "@/utils/constants";
 import { useTheme } from "@/utils/ThemeProvider";
-import { geistSans } from "@/utils/fonts";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAlert } from "@/components/ui/AlertProvider";
 import { SimulationStatsDrawer } from "@/components/SimulationStatsDrawer";
 import { SimulationStats } from "@/types/simulation";
 import { DocumentationDrawer } from "@/components/DocumentationDrawer";
+import { PathfindingAlgorithm, Position } from "@/utils/algorithms";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Update initial positions for the smaller grid
+// Move outside component
+const AXIS_MARGIN: number = 30;
+const FONT_SIZE: number = 12;
 const DEFAULT_START = { x: 4, y: 10 };
 const DEFAULT_GOAL = { x: 25, y: 10 };
-
-// Adjust sizing constant for grid margins
-const AXIS_MARGIN = 30;
 
 // Helper function for column labels (A, B, C, ..., Z, AA, AB, ...)
 const getColumnLabel = (index: number): string => {
@@ -67,6 +67,34 @@ const generateRandomObstacles = (count: number) => {
   });
 };
 
+// Add near other helper functions at the top
+const getNewPosition = (current: Position, move: number): Position => {
+  const newPos = { ...current };
+  switch (move) {
+    case 0:
+      newPos.x--;
+      break; // Left
+    case 1:
+      newPos.x++;
+      break; // Right
+    case 2:
+      newPos.y--;
+      break; // Up
+    case 3:
+      newPos.y++;
+      break; // Down
+  }
+  return newPos;
+};
+
+// Add near other helper functions
+const hasCollisionAtPosition = (
+  pos: Position,
+  obstacles: Position[]
+): boolean => {
+  return obstacles.some((obs) => obs.x === pos.x && obs.y === pos.y);
+};
+
 const Simulation = () => {
   const { theme, toggleTheme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -113,6 +141,10 @@ const Simulation = () => {
 
   // Add state for documentation drawer
   const [showDocs, setShowDocs] = useState(false);
+
+  // Add state for algorithm selection
+  const [selectedAlgorithm, setSelectedAlgorithm] =
+    useState<PathfindingAlgorithm>("astar");
 
   // Add keyboard shortcuts
   useKeyboardShortcuts({
@@ -202,7 +234,7 @@ const Simulation = () => {
   }, []);
 
   // Use cellSize and canvasSize instead of constants
-  const FONT_SIZE = Math.max(9, cellSize / 3);
+  const fontSize = useMemo(() => FONT_SIZE, []);
 
   // Update the movement effect
   useEffect(() => {
@@ -210,37 +242,26 @@ const Simulation = () => {
       let mounted = true;
       const interval = setInterval(() => {
         if (!mounted) return;
-        const action = predictNextMove(auvPosition, targetPosition, obstacles);
 
-        if (action === -1) {
+        const nextMove = predictNextMove(
+          auvPosition,
+          targetPosition,
+          obstacles,
+          selectedAlgorithm
+        );
+
+        if (nextMove === -1) {
           setIsRunning(false);
-          if (
-            auvPosition.x === targetPosition.x &&
-            auvPosition.y === targetPosition.y
-          ) {
-            handleGoalReached();
-          } else {
-            handleCollision();
-          }
+          handleGoalReached();
           return;
         }
 
-        setLastAction(action);
-        const newPos = { x: auvPosition.x, y: auvPosition.y };
+        setLastAction(nextMove);
+        const newPos = getNewPosition(auvPosition, nextMove);
 
-        switch (action) {
-          case 0:
-            newPos.x--;
-            break;
-          case 1:
-            newPos.x++;
-            break;
-          case 2:
-            newPos.y--;
-            break;
-          case 3:
-            newPos.y++;
-            break;
+        if (hasCollisionAtPosition(newPos, obstacles)) {
+          handleCollision();
+          return;
         }
 
         setAuvPosition(newPos);
@@ -257,6 +278,7 @@ const Simulation = () => {
     isRunning,
     obstacles,
     targetPosition,
+    selectedAlgorithm,
     handleCollision,
     handleGoalReached,
   ]);
@@ -273,208 +295,146 @@ const Simulation = () => {
       canvas.width = canvasSize.width;
       canvas.height = canvasSize.height;
 
-      console.log("Rendering canvas:", {
-        width: canvasSize.width,
-        height: canvasSize.height,
-        cellSize,
-      });
-
-      // Clear canvas
-      ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
-
-      // Set background
-      ctx.fillStyle = theme === "dark" ? "#111827" : "#ffffff";
+      // Clear canvas with a gradient background
+      const gradient = ctx.createLinearGradient(
+        0,
+        0,
+        canvasSize.width,
+        canvasSize.height
+      );
+      if (theme === "dark") {
+        gradient.addColorStop(0, "#111827");
+        gradient.addColorStop(1, "#1F2937");
+      } else {
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(1, "#f3f4f6");
+      }
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-      // Draw grid
-      ctx.strokeStyle = theme === "dark" ? "#374151" : "#e5e5e5";
-      ctx.lineWidth = 1;
+      // Draw grid with softer lines
+      ctx.strokeStyle =
+        theme === "dark" ? "rgba(55, 65, 81, 0.5)" : "rgba(229, 231, 235, 0.8)";
+      ctx.lineWidth = 0.5;
 
-      // Draw vertical lines
-      for (let i = 0; i <= GRID_SIZE.width; i++) {
-        const x = AXIS_MARGIN + i * cellSize;
+      // Draw cells with hover effect
+      for (let x = 0; x < GRID_SIZE.width; x++) {
+        for (let y = 0; y < GRID_SIZE.height; y++) {
+          const cellX = AXIS_MARGIN + x * cellSize;
+          const cellY = AXIS_MARGIN + y * cellSize;
+
+          // Draw cell background
+          ctx.fillStyle = theme === "dark" ? "#1F2937" : "#ffffff";
+          ctx.fillRect(cellX, cellY, cellSize, cellSize);
+
+          // Draw cell border
+          ctx.strokeRect(cellX, cellY, cellSize, cellSize);
+        }
+      }
+
+      // Draw path with gradient
+      if (pathHistory.length > 1) {
         ctx.beginPath();
-        ctx.moveTo(x, AXIS_MARGIN);
-        ctx.lineTo(x, canvasSize.height - AXIS_MARGIN);
+        ctx.moveTo(
+          AXIS_MARGIN + pathHistory[0].x * cellSize + cellSize / 2,
+          AXIS_MARGIN + pathHistory[0].y * cellSize + cellSize / 2
+        );
+
+        const pathGradient = ctx.createLinearGradient(
+          0,
+          0,
+          canvasSize.width,
+          canvasSize.height
+        );
+        pathGradient.addColorStop(0, "rgba(59, 130, 246, 0.5)"); // Blue
+        pathGradient.addColorStop(1, "rgba(147, 51, 234, 0.5)"); // Purple
+
+        ctx.strokeStyle = pathGradient;
+        ctx.lineWidth = 3;
+
+        for (let i = 1; i < pathHistory.length; i++) {
+          ctx.lineTo(
+            AXIS_MARGIN + pathHistory[i].x * cellSize + cellSize / 2,
+            AXIS_MARGIN + pathHistory[i].y * cellSize + cellSize / 2
+          );
+        }
         ctx.stroke();
       }
 
-      // Draw horizontal lines
-      for (let i = 0; i <= GRID_SIZE.height; i++) {
-        const y = AXIS_MARGIN + i * cellSize;
-        ctx.beginPath();
-        ctx.moveTo(AXIS_MARGIN, y);
-        ctx.lineTo(canvasSize.width - AXIS_MARGIN, y);
-        ctx.stroke();
-      }
+      // Draw entities with shadows and glow effects
+      ctx.shadowBlur = 15;
+      ctx.shadowColor =
+        theme === "dark" ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.2)";
 
-      // Enhanced axis styling
-      ctx.font = `${FONT_SIZE}px ${geistSans.style.fontFamily}`;
+      // Draw AUV with animation
+      const auvX = AXIS_MARGIN + auvPosition.x * cellSize;
+      const auvY = AXIS_MARGIN + auvPosition.y * cellSize;
+      ctx.fillStyle = hasCollided ? "#ef4444" : "#f97316"; // Red if collided, orange otherwise
+      ctx.beginPath();
+      ctx.arc(
+        auvX + cellSize / 2,
+        auvY + cellSize / 2,
+        cellSize * 0.4,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      // Draw start and goal with subtle animations
+      const startX = AXIS_MARGIN + startPosition.x * cellSize;
+      const startY = AXIS_MARGIN + startPosition.y * cellSize;
+      ctx.fillStyle = "#22c55e";
+      ctx.fillRect(startX + 2, startY + 2, cellSize - 4, cellSize - 4);
+
+      const goalX = AXIS_MARGIN + targetPosition.x * cellSize;
+      const goalY = AXIS_MARGIN + targetPosition.y * cellSize;
+      ctx.fillStyle = "#3b82f6";
+      ctx.fillRect(goalX + 2, goalY + 2, cellSize - 4, cellSize - 4);
+
+      // Draw obstacles with pattern
+      ctx.fillStyle = theme === "dark" ? "#dc2626" : "#ef4444";
+      obstacles.forEach((obstacle) => {
+        const obsX = AXIS_MARGIN + obstacle.x * cellSize;
+        const obsY = AXIS_MARGIN + obstacle.y * cellSize;
+
+        // Draw obstacle with pattern
+        ctx.beginPath();
+        ctx.moveTo(obsX, obsY);
+        ctx.lineTo(obsX + cellSize, obsY);
+        ctx.lineTo(obsX + cellSize, obsY + cellSize);
+        ctx.lineTo(obsX, obsY + cellSize);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Reset shadow for text
+      ctx.shadowBlur = 0;
+
+      // Use geistSans for text
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.fillStyle =
+        theme === "dark" ? "rgba(209, 213, 219, 0.4)" : "rgba(31, 41, 55, 0.4)";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
       // Draw column labels (A, B, C, ...)
       for (let x = 0; x < GRID_SIZE.width; x++) {
         const label = getColumnLabel(x);
-
-        // More subtle background and text
-        const opacity = x % 5 === 0 ? 0.4 : 0.15;
-
-        // Draw label with subtle styling
-        ctx.fillStyle =
-          theme === "dark"
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(31, 41, 55, ${opacity})`;
         ctx.fillText(
           label,
           AXIS_MARGIN + x * cellSize + cellSize / 2,
-          FONT_SIZE
+          fontSize
         );
       }
 
-      // Draw row labels (0, 1, 2, ...)
+      // Draw row numbers (0, 1, 2, ...)
+      ctx.textAlign = "right";
       for (let y = 0; y < GRID_SIZE.height; y++) {
-        const label = y.toString();
-        const labelWidth = ctx.measureText(label).width;
-
-        // More subtle background and text
-        const opacity = y % 5 === 0 ? 0.4 : 0.15;
-
-        // Draw label with subtle styling
-        ctx.fillStyle =
-          theme === "dark"
-            ? `rgba(209, 213, 219, ${opacity})`
-            : `rgba(31, 41, 55, ${opacity})`;
         ctx.fillText(
-          label,
-          10 + labelWidth / 2,
+          y.toString(),
+          AXIS_MARGIN - 5, // Add some padding from the grid
           AXIS_MARGIN + y * cellSize + cellSize / 2
         );
-      }
-
-      // Draw Grid with very subtle lines
-      ctx.strokeStyle =
-        theme === "dark" ? "rgba(55, 65, 81, 0.3)" : "rgba(229, 231, 235, 0.5)";
-      ctx.lineWidth = 0.5;
-      for (let x = 0; x < GRID_SIZE.width; x++) {
-        for (let y = 0; y < GRID_SIZE.height; y++) {
-          ctx.strokeRect(
-            AXIS_MARGIN + x * cellSize,
-            AXIS_MARGIN + y * cellSize,
-            cellSize,
-            cellSize
-          );
-        }
-      }
-
-      // Draw Obstacles with enhanced gradient
-      obstacles.forEach((obs) => {
-        const gradient = ctx.createRadialGradient(
-          AXIS_MARGIN + obs.x * cellSize + cellSize / 2,
-          AXIS_MARGIN + obs.y * cellSize + cellSize / 2,
-          0,
-          AXIS_MARGIN + obs.x * cellSize + cellSize / 2,
-          AXIS_MARGIN + obs.y * cellSize + cellSize / 2,
-          cellSize / 2
-        );
-        if (theme === "dark") {
-          gradient.addColorStop(0, "rgba(239, 68, 68, 0.9)"); // red-500
-          gradient.addColorStop(1, "rgba(239, 68, 68, 0.2)");
-        } else {
-          gradient.addColorStop(0, "rgba(255, 0, 0, 0.8)");
-          gradient.addColorStop(1, "rgba(255, 0, 0, 0.2)");
-        }
-        ctx.fillStyle = gradient;
-        ctx.fillRect(
-          AXIS_MARGIN + obs.x * cellSize,
-          AXIS_MARGIN + obs.y * cellSize,
-          cellSize,
-          cellSize
-        );
-      });
-
-      // Draw Start Position with gradient
-      const startGradient = ctx.createRadialGradient(
-        startPosition.x * cellSize + cellSize / 2,
-        startPosition.y * cellSize + cellSize / 2,
-        0,
-        startPosition.x * cellSize + cellSize / 2,
-        startPosition.y * cellSize + cellSize / 2,
-        cellSize / 2
-      );
-      startGradient.addColorStop(0, "rgba(0, 255, 0, 0.8)");
-      startGradient.addColorStop(1, "rgba(0, 255, 0, 0.2)");
-      ctx.fillStyle = startGradient;
-      ctx.fillRect(
-        AXIS_MARGIN + startPosition.x * cellSize,
-        AXIS_MARGIN + startPosition.y * cellSize,
-        cellSize,
-        cellSize
-      );
-
-      // Draw Goal Position with pulsing effect
-      const goalGradient = ctx.createRadialGradient(
-        targetPosition.x * cellSize + cellSize / 2,
-        targetPosition.y * cellSize + cellSize / 2,
-        0,
-        targetPosition.x * cellSize + cellSize / 2,
-        targetPosition.y * cellSize + cellSize / 2,
-        cellSize / 2
-      );
-      goalGradient.addColorStop(0, "rgba(0, 0, 255, 0.8)");
-      goalGradient.addColorStop(1, "rgba(0, 0, 255, 0.2)");
-      ctx.fillStyle = goalGradient;
-      ctx.fillRect(
-        AXIS_MARGIN + targetPosition.x * cellSize,
-        AXIS_MARGIN + targetPosition.y * cellSize,
-        cellSize,
-        cellSize
-      );
-
-      // Draw AUV with collision state
-      const auvGradient = ctx.createRadialGradient(
-        auvPosition.x * cellSize + cellSize / 2,
-        auvPosition.y * cellSize + cellSize / 2,
-        0,
-        auvPosition.x * cellSize + cellSize / 2,
-        auvPosition.y * cellSize + cellSize / 2,
-        cellSize / 2
-      );
-      if (hasCollided) {
-        auvGradient.addColorStop(0, "rgba(255, 0, 0, 1)");
-        auvGradient.addColorStop(1, "rgba(255, 0, 0, 0.3)");
-      } else {
-        auvGradient.addColorStop(0, "rgba(255, 165, 0, 1)");
-        auvGradient.addColorStop(1, "rgba(255, 165, 0, 0.3)");
-      }
-      ctx.fillStyle = auvGradient;
-      ctx.fillRect(
-        AXIS_MARGIN + auvPosition.x * cellSize,
-        AXIS_MARGIN + auvPosition.y * cellSize,
-        cellSize,
-        cellSize
-      );
-
-      // Draw path history
-      if (pathHistory.length > 1) {
-        ctx.beginPath();
-        ctx.strokeStyle =
-          theme === "dark"
-            ? "rgba(255, 165, 0, 0.4)"
-            : "rgba(255, 165, 0, 0.6)";
-        ctx.lineWidth = 2;
-
-        pathHistory.forEach((point, index) => {
-          const x = AXIS_MARGIN + point.x * cellSize + cellSize / 2;
-          const y = AXIS_MARGIN + point.y * cellSize + cellSize / 2;
-
-          if (index === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        });
-        ctx.stroke();
       }
     });
 
@@ -487,9 +447,10 @@ const Simulation = () => {
     theme,
     hasCollided,
     cellSize,
-    FONT_SIZE,
     pathHistory,
     canvasSize,
+    selectedAlgorithm,
+    fontSize,
   ]);
 
   // Update the coordinate formatting to use letter-number format
@@ -545,110 +506,118 @@ const Simulation = () => {
   };
 
   return (
-    <div className="h-full flex">
-      {/* Left Side: Simulation Map */}
-      <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900 relative flex flex-col min-w-0">
-        <div className="relative flex-grow flex justify-center items-center">
-          <div
-            className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4"
-            style={{
-              width: canvasSize.width + 32, // Add padding
-              height: canvasSize.height + 32,
-            }}
-          >
-            <canvas
-              ref={canvasRef}
-              width={canvasSize.width}
-              height={canvasSize.height}
+    <ErrorBoundary>
+      <div className="flex min-h-screen">
+        {/* Left Side: Simulation Map */}
+        <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900 relative flex flex-col">
+          <div className="flex-grow flex justify-center items-center my-auto">
+            <div
+              className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 -mt-16"
               style={{
-                width: `${canvasSize.width}px`,
-                height: `${canvasSize.height}px`,
+                width: canvasSize.width + 32,
+                height: canvasSize.height + 32,
               }}
-              className={`${
-                placementMode !== "none" ? "cursor-crosshair" : ""
-              }`}
-              onClick={handleGridClick}
-            />
+            >
+              <canvas
+                ref={canvasRef}
+                width={canvasSize.width}
+                height={canvasSize.height}
+                style={{
+                  width: `${canvasSize.width}px`,
+                  height: `${canvasSize.height}px`,
+                }}
+                className={`${
+                  placementMode !== "none" ? "cursor-crosshair" : ""
+                }`}
+                onClick={handleGridClick}
+              />
 
-            {/* Placement Mode Indicator */}
-            {placementMode !== "none" && (
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/75 text-white px-3 py-1 rounded text-sm">
-                Click to place {placementMode === "start" ? "start" : "goal"}
+              {/* Placement Mode Indicator */}
+              {placementMode !== "none" && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/75 text-white px-3 py-1 rounded text-sm">
+                  Click to place {placementMode === "start" ? "start" : "goal"}
+                </div>
+              )}
+
+              {/* Legend - Updated Style */}
+              <div className="absolute top-2 right-2 bg-white/80 dark:bg-gray-800/90 backdrop-blur-lg p-3 rounded-xl shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full shadow-sm"></div>
+                    <span className="dark:text-gray-300 font-medium">AUV</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+                    <span className="dark:text-gray-300 font-medium">
+                      Start
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
+                    <span className="dark:text-gray-300 font-medium">Goal</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm"></div>
+                    <span className="dark:text-gray-300 font-medium">
+                      Obstacle
+                    </span>
+                  </div>
+                </div>
               </div>
-            )}
 
-            {/* Legend - More Compact */}
-            <div className="absolute top-2 right-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-2 rounded shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-500 rounded-sm"></div>
-                  <span className="dark:text-gray-300">AUV</span>
+              {/* Coordinates - More Compact */}
+              <div className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-900/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="space-y-2">
+                  <p className="font-mono text-gray-700 dark:text-gray-300">
+                    AUV: {formatCoordinate(auvPosition.x, auvPosition.y)}
+                  </p>
+                  <p className="font-mono text-gray-700 dark:text-gray-300">
+                    Goal: {formatCoordinate(targetPosition.x, targetPosition.y)}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-                  <span className="dark:text-gray-300">Start</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                  <span className="dark:text-gray-300">Goal</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
-                  <span className="dark:text-gray-300">Obstacle</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Coordinates - More Compact */}
-            <div className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-900/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="space-y-2">
-                <p className="font-mono text-gray-700 dark:text-gray-300">
-                  AUV: {formatCoordinate(auvPosition.x, auvPosition.y)}
-                </p>
-                <p className="font-mono text-gray-700 dark:text-gray-300">
-                  Goal: {formatCoordinate(targetPosition.x, targetPosition.y)}
-                </p>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Right Side: Debug Panel */}
-      <DebuggingPanel
-        auvPosition={auvPosition}
-        lastAction={lastAction}
-        isRunning={isRunning}
-        setIsRunning={setIsRunning}
-        obstacles={obstacles}
-        setObstacles={setObstacles}
-        onClearObstacles={() => setObstacles([])}
-        setStartPosition={setStartPosition}
-        setTargetPosition={setTargetPosition}
-        setAuvPosition={setAuvPosition}
-        placementMode={placementMode}
-        setPlacementMode={setPlacementMode}
-        onStartSimulation={startSimulation}
-        setShowDocs={setShowDocs}
-      >
-        <button
-          className="w-full py-2 px-4 rounded-lg font-medium bg-yellow-500 
-                   hover:bg-yellow-600 text-white transition-all shadow"
-          onClick={resetSimulation}
+        {/* Right Side: Debug Panel */}
+        <DebuggingPanel
+          auvPosition={auvPosition}
+          lastAction={lastAction}
+          isRunning={isRunning}
+          setIsRunning={setIsRunning}
+          obstacles={obstacles}
+          setObstacles={setObstacles}
+          onClearObstacles={() => setObstacles([])}
+          setStartPosition={setStartPosition}
+          setTargetPosition={setTargetPosition}
+          setAuvPosition={setAuvPosition}
+          placementMode={placementMode}
+          setPlacementMode={setPlacementMode}
+          onStartSimulation={startSimulation}
+          setShowDocs={setShowDocs}
+          selectedAlgorithm={selectedAlgorithm}
+          onAlgorithmChange={setSelectedAlgorithm}
         >
-          Reset Simulation
-        </button>
-      </DebuggingPanel>
-      <SimulationStatsDrawer
-        isOpen={showStats}
-        onClose={() => setShowStats(false)}
-        stats={simulationStats}
-      />
-      <DocumentationDrawer
-        isOpen={showDocs}
-        onClose={() => setShowDocs(false)}
-      />
-    </div>
+          <button
+            className="w-full py-2 px-4 rounded-lg font-medium bg-yellow-500 
+                     hover:bg-yellow-600 text-white transition-all shadow"
+            onClick={resetSimulation}
+          >
+            Reset Simulation
+          </button>
+        </DebuggingPanel>
+        <SimulationStatsDrawer
+          isOpen={showStats}
+          onClose={() => setShowStats(false)}
+          stats={simulationStats}
+        />
+        <DocumentationDrawer
+          isOpen={showDocs}
+          onClose={() => setShowDocs(false)}
+        />
+      </div>
+    </ErrorBoundary>
   );
 };
 

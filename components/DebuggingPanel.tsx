@@ -11,6 +11,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
+import { PathfindingAlgorithm } from "@/utils/algorithms";
+import { getPathFinder } from "@/utils/algorithms";
 
 interface DebuggingPanelProps {
   auvPosition: { x: number; y: number };
@@ -28,6 +30,8 @@ interface DebuggingPanelProps {
   onStartSimulation: () => void;
   children?: React.ReactNode;
   setShowDocs: (show: boolean) => void;
+  selectedAlgorithm: PathfindingAlgorithm;
+  onAlgorithmChange: (algorithm: PathfindingAlgorithm) => void;
 }
 
 const DebuggingPanel = ({
@@ -46,6 +50,8 @@ const DebuggingPanel = ({
   onStartSimulation,
   children,
   setShowDocs,
+  selectedAlgorithm,
+  onAlgorithmChange,
 }: DebuggingPanelProps) => {
   const { theme, toggleTheme } = useTheme();
   const [obstacleCount, setObstacleCount] = useState(10);
@@ -202,6 +208,31 @@ const DebuggingPanel = ({
                 </TooltipContent>
               </Tooltip>
             </div>
+          </section>
+
+          {/* Algorithm Selection */}
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Pathfinding Algorithm
+            </h3>
+            <select
+              value={selectedAlgorithm}
+              onChange={(e) =>
+                onAlgorithmChange(e.target.value as PathfindingAlgorithm)
+              }
+              className="w-full px-3 py-2 rounded-lg border dark:border-gray-700 
+                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            >
+              <option value="astar">A* Search</option>
+              <option value="rrt">RRT (Rapidly-exploring Random Tree)</option>
+              <option value="drl">
+                Deep Reinforcement Learning (Coming Soon)
+              </option>
+            </select>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {getPathFinder(selectedAlgorithm).getDescription()}
+            </p>
           </section>
 
           {/* Main Controls */}
