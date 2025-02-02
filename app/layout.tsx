@@ -2,6 +2,9 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { geistSans, geistMono } from "@/utils/fonts";
 import { Metadata } from 'next'
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
@@ -9,9 +12,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/icon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>AUV Simulation - Deep RL Path Planning</title>
         <meta
@@ -20,7 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden ${inter.className}`}
       >
         <Providers>{children}</Providers>
       </body>
@@ -32,7 +35,7 @@ export const metadata: Metadata = {
   title: 'AUV Simulation',
   description: 'Autonomous Underwater Vehicle Pathfinding Simulation',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: '/icon.png',
+    apple: '/icon.png',
   },
 }
