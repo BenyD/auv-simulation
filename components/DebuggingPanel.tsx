@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/Tooltip";
 import { PathfindingAlgorithm } from "@/utils/algorithms";
 import { getPathFinder } from "@/utils/algorithms";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
 
 interface DebuggingPanelProps {
   auvPosition: { x: number; y: number };
@@ -211,28 +218,32 @@ const DebuggingPanel = ({
           </section>
 
           {/* Algorithm Selection */}
-          <section className="space-y-2">
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              Pathfinding Algorithm
-            </h3>
-            <select
-              value={selectedAlgorithm}
-              onChange={(e) =>
-                onAlgorithmChange(e.target.value as PathfindingAlgorithm)
-              }
-              className="w-full px-3 py-2 rounded-lg border dark:border-gray-700 
-                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <option value="astar">A* Search</option>
-              <option value="rrt">RRT (Rapidly-exploring Random Tree)</option>
-              <option value="drl">
-                Deep Reinforcement Learning (Coming Soon)
-              </option>
-            </select>
-
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {getPathFinder(selectedAlgorithm).getDescription()}
-            </p>
+          <section className="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg transition-all duration-300">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                Pathfinding Algorithm
+              </h3>
+              <Select
+                value={selectedAlgorithm}
+                onValueChange={onAlgorithmChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select algorithm" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="astar">A* Search</SelectItem>
+                  <SelectItem value="rrt">
+                    RRT (Rapidly-exploring Random Tree)
+                  </SelectItem>
+                  <SelectItem value="drl">
+                    Deep Reinforcement Learning
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                {getPathFinder(selectedAlgorithm).getDescription()}
+              </p>
+            </div>
           </section>
 
           {/* Main Controls */}

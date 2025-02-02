@@ -240,10 +240,10 @@ const Simulation = () => {
   useEffect(() => {
     if (isRunning) {
       let mounted = true;
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         if (!mounted) return;
 
-        const nextMove = predictNextMove(
+        const nextMove = await predictNextMove(
           auvPosition,
           targetPosition,
           obstacles,

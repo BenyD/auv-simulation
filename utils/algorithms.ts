@@ -1,4 +1,5 @@
 import { GRID_SIZE } from "./constants";
+import * as tf from "@tensorflow/tfjs";
 
 export interface Position {
   x: number;
@@ -28,12 +29,19 @@ export interface PathFinder {
     start: Position,
     goal: Position,
     obstacles: Position[]
-  ): PathfindingResult;
+  ): Promise<PathfindingResult> | PathfindingResult;
   getName(): string;
   getDescription(): string;
 }
 
 // Common helper functions
+const hasCollisionAtPosition = (
+  pos: Position,
+  obstacles: Position[]
+): boolean => {
+  return obstacles.some((obs) => obs.x === pos.x && obs.y === pos.y);
+};
+
 const getNeighbors = (
   pos: Position,
   obstacles: Set<string>,
@@ -80,6 +88,26 @@ const reconstructPath = (node: Node): Position[] => {
   }
 
   return path;
+};
+
+// Add near other helper functions
+const getNewPosition = (current: Position, move: number): Position => {
+  const newPos = { ...current };
+  switch (move) {
+    case 0:
+      newPos.x--;
+      break; // Left
+    case 1:
+      newPos.x++;
+      break; // Right
+    case 2:
+      newPos.y--;
+      break; // Up
+    case 3:
+      newPos.y++;
+      break; // Down
+  }
+  return newPos;
 };
 
 // A* Implementation
@@ -360,6 +388,313 @@ export class RRTPathFinder implements PathFinder {
   }
 }
 
+// Add DRL implementation
+export class DRLPathFinder implements PathFinder {
+  private model!: tf.LayersModel;
+  private initialized: boolean = false;
+  private epsilon: number = 0.05; // Reduced exploration rate
+  private gamma: number = 0.99; // Increased discount factor
+  private replayBuffer: Array<{
+    state: number[];
+    action: number;
+    reward: number;
+    nextState: number[];
+    done: boolean;
+  }> = [];
+  private maxBufferSize: number = 10000; // Increased buffer size
+  private batchSize: number = 64; // Increased batch size
+  private initPromise: Promise<void>;
+
+  constructor() {
+    this.initPromise = this.initModel();
+  }
+
+  private async initModel() {
+    try {
+      const model = tf.sequential();
+      model.add(
+        tf.layers.dense({
+          units: 256, // Increased network capacity
+          inputShape: [6],
+          activation: "relu",
+          kernelInitializer: "glorotUniform",
+        })
+      );
+      model.add(tf.layers.dropout({ rate: 0.1 })); // Reduced dropout
+      model.add(tf.layers.dense({ units: 128, activation: "relu" }));
+      model.add(tf.layers.dense({ units: 64, activation: "relu" }));
+      model.add(tf.layers.dense({ units: 4, activation: "linear" }));
+
+      model.compile({
+        optimizer: tf.train.adam(0.0005), // Reduced learning rate
+        loss: "meanSquaredError",
+      });
+
+      this.model = model;
+      this.initialized = true;
+    } catch (error) {
+      console.error("Failed to initialize DRL model:", error);
+      throw new Error("DRL initialization failed");
+    }
+  }
+
+  private addToReplayBuffer(experience: {
+    state: number[];
+    action: number;
+    reward: number;
+    nextState: number[];
+    done: boolean;
+  }) {
+    this.replayBuffer.push(experience);
+    if (this.replayBuffer.length > this.maxBufferSize) {
+      this.replayBuffer.shift();
+    }
+  }
+
+  private async trainOnBatch() {
+    if (this.replayBuffer.length < this.batchSize) return;
+
+    const batch = tf.tidy(() => {
+      const indices = Array.from(
+        tf.util.createShuffledIndices(this.replayBuffer.length)
+      ).slice(0, this.batchSize);
+
+      const experiences = indices.map((i) => this.replayBuffer[i]);
+
+      const states = tf.tensor2d(experiences.map((e) => e.state));
+      const nextStates = tf.tensor2d(experiences.map((e) => e.nextState));
+
+      const currentQs = this.model.predict(states) as tf.Tensor;
+      const futureQs = this.model.predict(nextStates) as tf.Tensor;
+
+      const updatedQValues = currentQs.arraySync() as number[][];
+
+      experiences.forEach((exp, i) => {
+        const futureQ = exp.done
+          ? 0
+          : Math.max(...(futureQs.arraySync() as number[][])[i]);
+        updatedQValues[i][exp.action] = exp.reward + this.gamma * futureQ;
+      });
+
+      return {
+        states,
+        updatedQValues: tf.tensor2d(updatedQValues),
+      };
+    });
+
+    await this.model.trainOnBatch(batch.states, batch.updatedQValues);
+    tf.dispose(batch);
+  }
+
+  private getState(
+    current: Position,
+    goal: Position,
+    obstacles: Position[]
+  ): number[] {
+    const nearestObs = obstacles.reduce((nearest, obs) => {
+      const distToCurrent = Math.hypot(obs.x - current.x, obs.y - current.y);
+      const distToNearest = Math.hypot(
+        nearest.x - current.x,
+        nearest.y - current.y
+      );
+      return distToCurrent < distToNearest ? obs : nearest;
+    }, obstacles[0] || { x: -1, y: -1 });
+
+    return [
+      current.x / GRID_SIZE.width,
+      current.y / GRID_SIZE.height,
+      goal.x / GRID_SIZE.width,
+      goal.y / GRID_SIZE.height,
+      nearestObs.x / GRID_SIZE.width,
+      nearestObs.y / GRID_SIZE.height,
+    ];
+  }
+
+  private async predict(state: number[]): Promise<number> {
+    return tf.tidy(() => {
+      if (Math.random() < this.epsilon) {
+        return Math.floor(Math.random() * 4);
+      }
+
+      const stateTensor = tf.tensor2d([state], [1, 6]);
+      const prediction = this.model.predict(stateTensor) as tf.Tensor;
+      const actions = prediction.arraySync() as number[][];
+      return actions[0].indexOf(Math.max(...actions[0]));
+    });
+  }
+
+  private getReward(
+    newPos: Position,
+    goal: Position,
+    obstacles: Position[]
+  ): number {
+    // Check for collision
+    if (hasCollisionAtPosition(newPos, obstacles)) {
+      return -100;
+    }
+
+    // Check if goal reached
+    if (newPos.x === goal.x && newPos.y === goal.y) {
+      return 100;
+    }
+
+    // Encourage moving closer to goal
+    const previousDistance = Math.sqrt(
+      Math.pow(goal.x - newPos.x, 2) + Math.pow(goal.y - newPos.y, 2)
+    );
+
+    return -previousDistance * 0.1;
+  }
+
+  private async train(experience: {
+    state: number[];
+    action: number;
+    reward: number;
+    nextState: number[];
+    done: boolean;
+  }): Promise<void> {
+    this.addToReplayBuffer(experience);
+    await this.trainOnBatch();
+  }
+
+  async findPath(
+    start: Position,
+    goal: Position,
+    obstacles: Position[]
+  ): Promise<PathfindingResult> {
+    // Wait for model initialization
+    await this.initPromise.catch(() => {
+      console.warn("DRL initialization failed, falling back to A*");
+      return new AStarPathFinder().findPath(start, goal, obstacles);
+    });
+
+    if (!this.initialized) {
+      return new AStarPathFinder().findPath(start, goal, obstacles);
+    }
+
+    try {
+      const startTime = performance.now();
+      let nodesExplored = 0;
+      const path: Position[] = [start];
+      let current = { ...start };
+      let failedAttempts = 0;
+      const maxFailedAttempts = 50;
+
+      while (nodesExplored < 1000) {
+        nodesExplored++;
+
+        const state = this.getState(current, goal, obstacles);
+        const action = await this.predict(state);
+        const newPos = getNewPosition(current, action);
+
+        // Check bounds and obstacles
+        if (
+          newPos.x < 0 ||
+          newPos.x >= GRID_SIZE.width ||
+          newPos.y < 0 ||
+          newPos.y >= GRID_SIZE.height ||
+          hasCollisionAtPosition(newPos, obstacles)
+        ) {
+          failedAttempts++;
+          if (failedAttempts >= maxFailedAttempts) {
+            console.warn("DRL failed to find valid path, falling back to A*");
+            return new AStarPathFinder().findPath(start, goal, obstacles);
+          }
+          continue;
+        }
+
+        failedAttempts = 0; // Reset failed attempts on valid move
+        const reward = this.getReward(newPos, goal, obstacles);
+        const nextState = this.getState(newPos, goal, obstacles);
+        const done = reward >= 90 || reward <= -90;
+
+        await this.train({
+          state,
+          action,
+          reward,
+          nextState,
+          done,
+        });
+
+        if (done) {
+          if (reward >= 90) {
+            path.push(newPos);
+            break;
+          }
+          break;
+        }
+
+        current = newPos;
+        path.push(current);
+      }
+
+      return {
+        path: this.optimizePath(path, obstacles),
+        nodesExplored,
+        executionTime: performance.now() - startTime,
+      };
+    } catch (error) {
+      console.error("DRL pathfinding failed:", error);
+      return new AStarPathFinder().findPath(start, goal, obstacles);
+    }
+  }
+
+  // Add path optimization
+  private optimizePath(path: Position[], obstacles: Position[]): Position[] {
+    if (path.length <= 2) return path;
+
+    const optimized: Position[] = [path[0]];
+    let current = 0;
+
+    while (current < path.length - 1) {
+      let furthest = current + 1;
+      for (let i = path.length - 1; i > current; i--) {
+        const canConnect = !this.hasObstacleBetween(
+          path[current],
+          path[i],
+          obstacles
+        );
+        if (canConnect) {
+          furthest = i;
+          break;
+        }
+      }
+      optimized.push(path[furthest]);
+      current = furthest;
+    }
+
+    return optimized;
+  }
+
+  private hasObstacleBetween(
+    start: Position,
+    end: Position,
+    obstacles: Position[]
+  ): boolean {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = Math.round(start.x + dx * t);
+      const y = Math.round(start.y + dy * t);
+      if (hasCollisionAtPosition({ x, y }, obstacles)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getName(): string {
+    return "Deep Reinforcement Learning";
+  }
+
+  getDescription(): string {
+    return "Experimental: Uses deep Q-learning to find paths (may be unstable)";
+  }
+}
+
 // Update factory function
 export function getPathFinder(algorithm: PathfindingAlgorithm): PathFinder {
   switch (algorithm) {
@@ -368,7 +703,7 @@ export function getPathFinder(algorithm: PathfindingAlgorithm): PathFinder {
     case "rrt":
       return new RRTPathFinder();
     case "drl":
-      throw new Error("Deep Reinforcement Learning implementation coming soon");
+      return new DRLPathFinder();
     default:
       return new AStarPathFinder();
   }

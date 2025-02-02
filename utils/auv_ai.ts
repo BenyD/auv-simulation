@@ -9,12 +9,12 @@ let lastAlgorithm: string = "";
 // Add path cache
 const pathCache = new Map<string, Position[]>();
 
-export const predictNextMove = (
+export const predictNextMove = async (
   currentPos: Position,
   goalPos: Position,
   obstacles: Position[],
   algorithm: PathfindingAlgorithm
-): number => {
+): Promise<number> => {
   const cacheKey = `${algorithm}-${currentPos.x},${currentPos.y}-${goalPos.x},${
     goalPos.y
   }-${obstacles
@@ -26,7 +26,9 @@ export const predictNextMove = (
     currentPath = pathCache.get(cacheKey)!;
   } else {
     const pathFinder = getPathFinder(algorithm);
-    const result = pathFinder.findPath(currentPos, goalPos, obstacles);
+    const result = await Promise.resolve(
+      pathFinder.findPath(currentPos, goalPos, obstacles)
+    );
     currentPath = result.path;
     pathCache.set(cacheKey, currentPath);
   }
@@ -50,7 +52,9 @@ export const predictNextMove = (
     algorithm !== lastAlgorithm
   ) {
     const pathFinder = getPathFinder(algorithm);
-    const result = pathFinder.findPath(currentPos, goalPos, obstacles);
+    const result = await Promise.resolve(
+      pathFinder.findPath(currentPos, goalPos, obstacles)
+    );
     currentPath = result.path;
 
     lastStart = startKey;
