@@ -25,6 +25,7 @@ interface DebuggingPanelProps {
   setAuvPosition: (position: { x: number; y: number }) => void;
   placementMode: "none" | "start" | "goal";
   setPlacementMode: (mode: "none" | "start" | "goal") => void;
+  onStartSimulation: () => void;
   children?: React.ReactNode;
 }
 
@@ -41,6 +42,7 @@ const DebuggingPanel = ({
   setAuvPosition,
   placementMode,
   setPlacementMode,
+  onStartSimulation,
   children,
 }: DebuggingPanelProps) => {
   const { theme, toggleTheme } = useTheme();
@@ -193,7 +195,9 @@ const DebuggingPanel = ({
                       ? "bg-red-500 hover:bg-red-600"
                       : "bg-green-500 hover:bg-green-600"
                   } text-white`}
-                  onClick={() => setIsRunning(!isRunning)}
+                  onClick={() =>
+                    isRunning ? setIsRunning(false) : onStartSimulation()
+                  }
                 >
                   {isRunning ? (
                     <>

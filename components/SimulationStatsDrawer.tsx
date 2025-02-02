@@ -1,10 +1,7 @@
 "use client";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
@@ -20,8 +17,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
 import { motion } from "framer-motion";
 
@@ -36,9 +31,6 @@ export function SimulationStatsDrawer({
   onClose,
   stats,
 }: SimulationStatsDrawerProps) {
-  // Calculate path efficiency percentage
-  const efficiencyPercentage = Math.round(stats.pathEfficiency * 100);
-
   // Prepare data for the move time chart
   const moveTimeData = stats.pathHistory.map((_, index) => ({
     move: index + 1,
@@ -64,9 +56,6 @@ export function SimulationStatsDrawer({
               <X className="h-4 w-4" />
             </button>
             <DrawerTitle>Simulation Statistics</DrawerTitle>
-            <DrawerDescription>
-              Performance metrics from the latest simulation run
-            </DrawerDescription>
           </DrawerHeader>
         </div>
 
@@ -107,7 +96,9 @@ export function SimulationStatsDrawer({
 
             {/* Move Time Chart */}
             <div className="h-[200px] bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium mb-2">Move Time Distribution</h3>
+              <h3 className="text-sm font-medium mb-2">
+                Move Time Distribution
+              </h3>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={moveTimeData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -141,7 +132,9 @@ export function SimulationStatsDrawer({
 
             {/* Additional Stats */}
             <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">Additional Information</h3>
+              <h3 className="text-sm font-medium mb-2">
+                Additional Information
+              </h3>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <dt className="text-gray-500">Obstacle Count:</dt>
                 <dd>{stats.obstacleCount}</dd>
@@ -157,10 +150,7 @@ export function SimulationStatsDrawer({
         </div>
 
         <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-          <Button 
-            onClick={onClose}
-            className="w-full"
-          >
+          <Button onClick={onClose} className="w-full">
             Close Stats
           </Button>
         </div>
@@ -193,4 +183,4 @@ function MetricCard({
       </p>
     </motion.div>
   );
-} 
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { predictNextMove } from "@/utils/auv_ai";
 import DebuggingPanel from "./DebuggingPanel";
 import { GRID_SIZE } from "@/utils/constants";
@@ -113,11 +113,54 @@ const Simulation = () => {
   // Add keyboard shortcuts
   useKeyboardShortcuts({
     toggleTheme,
-    toggleSimulation: () => setIsRunning(prev => !prev),
+    toggleSimulation: () => setIsRunning((prev) => !prev),
     clearObstacles: () => setObstacles([]),
   });
 
   const { showAlert } = useAlert();
+
+  // Move these functions before the useEffect
+  const handleCollision = useCallback(() => {
+    if (!hasCollided) {
+      setHasCollided(true);
+      showAlert(
+        "error",
+        "Collision Detected",
+        "The AUV has collided with an obstacle!"
+      );
+      setIsRunning(false);
+    }
+  }, [hasCollided, showAlert]);
+
+  const handleGoalReached = useCallback(() => {
+    const endTime = performance.now();
+    const executionTime = endTime - simulationStats.startTime;
+    
+    const optimalLength = 
+      Math.abs(targetPosition.x - startPosition.x) + 
+      Math.abs(targetPosition.y - startPosition.y);
+    
+    const stats: SimulationStats = {
+      ...simulationStats,
+      endTime,
+      executionTime,
+      pathLength: pathHistory.length,
+      pathEfficiency: optimalLength / pathHistory.length,
+      totalMoves: pathHistory.length,
+      averageTimePerMove: executionTime / pathHistory.length,
+      obstacleCount: obstacles.length,
+      pathHistory: [...pathHistory],
+    };
+
+    setSimulationStats(stats);
+    setShowStats(true);
+    showAlert(
+      "success",
+      "Goal Reached",
+      "The AUV has successfully reached its target!"
+    );
+    setIsRunning(false);
+  }, [simulationStats, pathHistory, targetPosition, startPosition, obstacles, showAlert]);
 
   // Update size calculation
   useEffect(() => {
@@ -198,7 +241,14 @@ const Simulation = () => {
         clearInterval(interval);
       };
     }
-  }, [auvPosition, isRunning, obstacles, targetPosition]);
+  }, [
+    auvPosition,
+    isRunning,
+    obstacles,
+    targetPosition,
+    handleCollision,
+    handleGoalReached,
+  ]);
 
   // Optimize canvas rendering
   useEffect(() => {
@@ -455,49 +505,6 @@ const Simulation = () => {
     setPlacementMode("none");
   };
 
-  const handleCollision = () => {
-    if (!hasCollided) {
-      setHasCollided(true);
-      showAlert(
-        "error",
-        "Collision Detected",
-        "The AUV has collided with an obstacle!"
-      );
-      setIsRunning(false);
-    }
-  };
-
-  const handleGoalReached = () => {
-    const endTime = performance.now();
-    const executionTime = endTime - simulationStats.startTime;
-    
-    // Calculate optimal path length (Manhattan distance)
-    const optimalLength = 
-      Math.abs(targetPosition.x - startPosition.x) + 
-      Math.abs(targetPosition.y - startPosition.y);
-    
-    const stats: SimulationStats = {
-      ...simulationStats,
-      endTime,
-      executionTime,
-      pathLength: pathHistory.length,
-      pathEfficiency: optimalLength / pathHistory.length,
-      totalMoves: pathHistory.length,
-      averageTimePerMove: executionTime / pathHistory.length,
-      obstacleCount: obstacles.length,
-      pathHistory: [...pathHistory],
-    };
-
-    setSimulationStats(stats);
-    setShowStats(true);
-    showAlert(
-      "success",
-      "Goal Reached",
-      "The AUV has successfully reached its target!"
-    );
-    setIsRunning(false);
-  };
-
   const resetSimulation = () => {
     setAuvPosition(startPosition);
     setPathHistory([]);
@@ -512,7 +519,7 @@ const Simulation = () => {
   };
 
   const startSimulation = () => {
-    setSimulationStats(prev => ({
+    setSimulationStats((prev) => ({
       ...prev,
       startTime: performance.now(),
       collisionCount: 0,
@@ -605,6 +612,7 @@ const Simulation = () => {
         setAuvPosition={setAuvPosition}
         placementMode={placementMode}
         setPlacementMode={setPlacementMode}
+        onStartSimulation={startSimulation}
       >
         <button
           className="w-full py-2 px-4 rounded-lg font-medium bg-yellow-500 
