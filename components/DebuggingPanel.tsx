@@ -75,12 +75,12 @@ const DebuggingPanel = ({
       initial={{ x: 100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="w-80 lg:w-96 h-[calc(100vh-3rem)] flex flex-col bg-white/90 dark:bg-gray-900/95 backdrop-blur-md border-l border-gray-200 dark:border-gray-800"
+      className="w-80 lg:w-96 h-[calc(100vh-3rem)] mt-16 flex flex-col bg-white/90 dark:bg-gray-900/95 backdrop-blur-md border-l border-gray-200 dark:border-gray-800"
     >
       <TooltipProvider>
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4 pb-20">
+            <div className="p-4 pt-6 space-y-4 pb-24">
               {/* Header with Theme Toggle */}
               <motion.div layout className="flex items-center justify-between">
                 <motion.h2 layout className="text-xl font-bold dark:text-white">
@@ -93,7 +93,7 @@ const DebuggingPanel = ({
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setShowDocs(true)}
-                        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700/80 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-700 dark:text-gray-200"
                       >
                         <Keyboard className="w-5 h-5" />
                       </motion.button>
@@ -226,27 +226,38 @@ const DebuggingPanel = ({
               {/* Algorithm Selection */}
               <section className="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg transition-all duration-300">
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">
                     Pathfinding Algorithm
                   </h3>
                   <Select
                     value={selectedAlgorithm}
                     onValueChange={onAlgorithmChange}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
                       <SelectValue placeholder="Select algorithm" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="astar">A* Search</SelectItem>
-                      <SelectItem value="rrt">
+                    <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                      <SelectItem
+                        value="astar"
+                        className="text-gray-900 dark:text-gray-100"
+                      >
+                        A* Search
+                      </SelectItem>
+                      <SelectItem
+                        value="rrt"
+                        className="text-gray-900 dark:text-gray-100"
+                      >
                         RRT (Rapidly-exploring Random Tree)
                       </SelectItem>
-                      <SelectItem value="drl">
+                      <SelectItem
+                        value="drl"
+                        className="text-gray-900 dark:text-gray-100"
+                      >
                         Deep Reinforcement Learning
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     {getPathFinder(selectedAlgorithm).getDescription()}
                   </p>
                 </div>

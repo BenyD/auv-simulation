@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   output: "standalone",
   // Allow larger model files
   webpack: (config) => {
@@ -9,13 +10,16 @@ const nextConfig = {
   },
   // Add Turbopack configuration
   experimental: {
+    optimizeCss: true,
     turbo: {
-      resolveExtensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
       rules: {
-        // Add any specific loader rules if needed
+        // Prevent compilation of test files during production build
+        '**/*.test.*': ['development', 'test'],
+        '**/*.spec.*': ['development', 'test'],
       },
     },
   },
+  // Cache headers for model files
   async headers() {
     return [
       {

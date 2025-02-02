@@ -510,10 +510,10 @@ const Simulation = () => {
     <ErrorBoundary>
       <div className="flex min-h-screen">
         {/* Left Side: Simulation Map */}
-        <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900 relative flex flex-col">
-          <div className="flex-grow flex justify-center items-center my-auto">
+        <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+          <div className="relative flex items-center justify-center h-[calc(100vh-7rem)]">
             <div
-              className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 -mt-16"
+              className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4"
               style={{
                 width: canvasSize.width + 32,
                 height: canvasSize.height + 32,
