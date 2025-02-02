@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { geistSans, geistMono } from "@/utils/fonts";
+import { Metadata } from 'next'
 
 export default function RootLayout({
   children,
@@ -25,4 +26,13 @@ export default function RootLayout({
       </body>
     </html>
   );
+}
+
+export const metadata: Metadata = {
+  title: 'AUV Simulation',
+  description: 'Autonomous Underwater Vehicle Pathfinding Simulation',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 }

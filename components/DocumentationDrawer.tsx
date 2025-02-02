@@ -7,7 +7,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Keyboard } from "lucide-react";
+import { X, Keyboard, Code, Book, Cpu, Lightbulb } from "lucide-react";
 
 interface DocumentationDrawerProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ export function DocumentationDrawer({
               <X className="h-4 w-4" />
             </button>
             <DrawerTitle className="flex items-center gap-2">
-              <Keyboard className="h-5 w-5" />
+              <Book className="h-5 w-5" />
               Documentation
             </DrawerTitle>
           </DrawerHeader>
@@ -40,57 +40,90 @@ export function DocumentationDrawer({
           <div className="p-4 space-y-8">
             {/* Keyboard Shortcuts Section */}
             <section>
-              <h2 className="text-lg font-semibold mb-4">Keyboard Shortcuts</h2>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Keyboard className="h-5 w-5" />
+                Keyboard Shortcuts
+              </h2>
               <div className="space-y-2">
                 <ShortcutItem
                   keys={["Space"]}
                   description="Start/Stop simulation"
                 />
                 <ShortcutItem
-                  keys={["Ctrl/⌘", "C"]}
-                  description="Clear all obstacles"
+                  keys={["Alt", "L"]}
+                  description="Toggle light/dark theme"
                 />
                 <ShortcutItem
-                  keys={["Ctrl/⌘", "R"]}
-                  description="Reset simulation"
+                  keys={["Alt", "X"]}
+                  description="Clear obstacles"
                 />
-                <ShortcutItem
-                  keys={["Ctrl/⌘", "T"]}
-                  description="Toggle dark/light theme"
-                />
+                <ShortcutItem keys={["Esc"]} description="Stop simulation" />
+                <ShortcutItem keys={["?"]} description="Toggle documentation" />
               </div>
             </section>
 
             {/* Basic Controls Section */}
             <section>
-              <h2 className="text-lg font-semibold mb-4">Basic Controls</h2>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Cpu className="h-5 w-5" />
+                Basic Controls
+              </h2>
               <div className="space-y-4 text-sm">
                 <ControlItem
-                  title="Placement Mode"
-                  description="Use the 'Set Start' and 'Set Goal' buttons to enter placement mode, then click on the grid to place the start or goal position."
+                  title="Mouse Controls"
+                  description="Click and drag to place obstacles. Right-click to set start position (green). Right-click + Shift to set goal position (blue)."
                 />
                 <ControlItem
-                  title="Obstacles"
-                  description="Click and drag on the grid to draw obstacles. Use the obstacle controls to add random obstacles or clear them all."
+                  title="Algorithm Selection"
+                  description="Choose between A* Search, RRT, or Deep Reinforcement Learning algorithms from the control panel."
                 />
                 <ControlItem
-                  title="Simulation"
-                  description="Press the Start button or Spacebar to begin the simulation. The AUV will attempt to find the optimal path to the goal while avoiding obstacles."
+                  title="Simulation Controls"
+                  description="Use the Start/Stop button or spacebar to control the simulation. Reset button clears the current path."
                 />
               </div>
             </section>
 
-            {/* Advanced Settings Section */}
+            {/* Algorithms Section */}
             <section>
-              <h2 className="text-lg font-semibold mb-4">Advanced Settings</h2>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Code className="h-5 w-5" />
+                Pathfinding Algorithms
+              </h2>
               <div className="space-y-4 text-sm">
                 <ControlItem
-                  title="Learning Rate"
-                  description="Controls how quickly the AUV learns from its experiences. Higher values mean faster learning but potentially less optimal paths."
+                  title="A* Search"
+                  description="Utilizes Manhattan distance heuristic for optimal pathfinding. Best for environments with sparse obstacles. Guarantees the shortest path when available."
                 />
                 <ControlItem
-                  title="Statistics"
-                  description="After reaching the goal, detailed statistics about the path efficiency, execution time, and other metrics will be displayed."
+                  title="RRT (Rapidly-exploring Random Tree)"
+                  description="Suitable for complex, cluttered environments. Uses a probabilistic approach to pathfinding. Efficient for real-time applications."
+                />
+                <ControlItem
+                  title="Deep Reinforcement Learning"
+                  description="Experimental feature using TensorFlow.js. Learns from experience to improve pathfinding. Adapts to dynamic environments."
+                />
+              </div>
+            </section>
+
+            {/* Tips Section */}
+            <section>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Lightbulb className="h-5 w-5" />
+                Tips & Best Practices
+              </h2>
+              <div className="space-y-4 text-sm">
+                <ControlItem
+                  title="Algorithm Selection"
+                  description="Use A* for simple environments, RRT for complex obstacle patterns, and DRL for dynamic scenarios."
+                />
+                <ControlItem
+                  title="Performance Optimization"
+                  description="Keep obstacle count reasonable for better performance. Clear paths occasionally to reset the simulation state."
+                />
+                <ControlItem
+                  title="Experimentation"
+                  description="Try different start/goal positions and obstacle patterns to see how each algorithm performs in various scenarios."
                 />
               </div>
             </section>
@@ -139,7 +172,7 @@ function ControlItem({
   description: string;
 }) {
   return (
-    <div>
+    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
       <h3 className="font-medium mb-1">{title}</h3>
       <p className="text-gray-600 dark:text-gray-400">{description}</p>
     </div>

@@ -13,19 +13,14 @@ export function useKeyboardShortcuts({
 }: ShortcutConfig) {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if focus is in an input or if modifiers other than Ctrl/Cmd are pressed
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.altKey ||
-        e.shiftKey
-      ) return;
+      // Ignore if focus is in an input
+      if (e.target instanceof HTMLInputElement) return;
 
-      const isMacCmd = e.metaKey && navigator.platform.toLowerCase().includes('mac');
-      const isCtrl = e.ctrlKey || isMacCmd;
+      const isMacCmd = navigator.platform.toLowerCase().includes('mac');
 
       switch (e.key.toLowerCase()) {
-        case 't':
-          if (isCtrl) {
+        case 'l': // Changed from 't' to 'l' for "light/dark"
+          if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             toggleTheme();
           }
@@ -39,17 +34,13 @@ export function useKeyboardShortcuts({
             toggleSimulation();
           }
           break;
-        case 'c':
-          if (isCtrl) {
-            // Only prevent default if we're not trying to copy text
-            if (!window.getSelection()?.toString()) {
-              e.preventDefault();
-              clearObstacles();
-            }
+        case 'x': // Changed from 'c' to 'x' for "clear"
+          if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            clearObstacles();
           }
           break;
         case 'escape':
-          // Could be used to stop simulation or clear selection
           e.preventDefault();
           toggleSimulation();
           break;

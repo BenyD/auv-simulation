@@ -41,7 +41,7 @@ export function KeyboardShortcutsDialog() {
             <h2 className="text-xl font-bold mb-4 dark:text-white">Keyboard Shortcuts</h2>
             <div className="space-y-3">
               <ShortcutRow
-                keys={[isMac ? '⌘' : 'Ctrl', 'T']}
+                keys={['Alt', 'L']}
                 description="Toggle dark/light theme"
               />
               <ShortcutRow
@@ -49,7 +49,7 @@ export function KeyboardShortcutsDialog() {
                 description="Start/Stop simulation"
               />
               <ShortcutRow
-                keys={[isMac ? '⌘' : 'Ctrl', 'C']}
+                keys={['Alt', 'X']}
                 description="Clear all obstacles"
               />
               <ShortcutRow
