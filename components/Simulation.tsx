@@ -8,6 +8,8 @@ import { useTheme } from "@/utils/ThemeProvider";
 import { geistSans } from "@/utils/fonts";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAlert } from "@/components/ui/AlertProvider";
+import { SimulationStatsDrawer } from "@/components/SimulationStatsDrawer";
+import { SimulationStats } from "@/types/simulation";
 
 // Update initial positions for the smaller grid
 const DEFAULT_START = { x: 4, y: 10 };
@@ -91,6 +93,22 @@ const Simulation = () => {
   const [pathHistory, setPathHistory] = useState<
     Array<{ x: number; y: number }>
   >([]);
+
+  // Add new state for statistics
+  const [showStats, setShowStats] = useState(false);
+  const [simulationStats, setSimulationStats] = useState<SimulationStats>({
+    pathLength: 0,
+    executionTime: 0,
+    collisionCount: 0,
+    pathEfficiency: 0,
+    nodesExplored: 0,
+    averageTimePerMove: 0,
+    totalMoves: 0,
+    startTime: 0,
+    endTime: 0,
+    obstacleCount: 0,
+    pathHistory: [],
+  });
 
   // Add keyboard shortcuts
   useKeyboardShortcuts({
@@ -450,6 +468,28 @@ const Simulation = () => {
   };
 
   const handleGoalReached = () => {
+    const endTime = performance.now();
+    const executionTime = endTime - simulationStats.startTime;
+    
+    // Calculate optimal path length (Manhattan distance)
+    const optimalLength = 
+      Math.abs(targetPosition.x - startPosition.x) + 
+      Math.abs(targetPosition.y - startPosition.y);
+    
+    const stats: SimulationStats = {
+      ...simulationStats,
+      endTime,
+      executionTime,
+      pathLength: pathHistory.length,
+      pathEfficiency: optimalLength / pathHistory.length,
+      totalMoves: pathHistory.length,
+      averageTimePerMove: executionTime / pathHistory.length,
+      obstacleCount: obstacles.length,
+      pathHistory: [...pathHistory],
+    };
+
+    setSimulationStats(stats);
+    setShowStats(true);
     showAlert(
       "success",
       "Goal Reached",
@@ -469,6 +509,16 @@ const Simulation = () => {
       "Simulation Reset",
       "The simulation has been reset to its initial state."
     );
+  };
+
+  const startSimulation = () => {
+    setSimulationStats(prev => ({
+      ...prev,
+      startTime: performance.now(),
+      collisionCount: 0,
+      nodesExplored: 0,
+    }));
+    setIsRunning(true);
   };
 
   return (
@@ -564,6 +614,11 @@ const Simulation = () => {
           Reset Simulation
         </button>
       </DebuggingPanel>
+      <SimulationStatsDrawer
+        isOpen={showStats}
+        onClose={() => setShowStats(false)}
+        stats={simulationStats}
+      />
     </div>
   );
 };
