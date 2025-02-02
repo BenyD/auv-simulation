@@ -33,6 +33,7 @@ body {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --transition-duration: 0.3s;
   }
   .dark {
     --background: 222 47% 11%;
@@ -60,14 +61,26 @@ body {
     --chart-4: 269 75% 74%;
     --chart-5: 326 85% 67%;
   }
+
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color var(--transition-duration) ease,
+                color var(--transition-duration) ease;
+  }
+
+  /* Add smooth transitions for all theme-related elements */
+  *, *::before, *::after {
+    transition: background-color var(--transition-duration) ease,
+                border-color var(--transition-duration) ease,
+                color var(--transition-duration) ease,
+                fill var(--transition-duration) ease,
+                stroke var(--transition-duration) ease;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
   }
 }
 

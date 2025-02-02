@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTheme } from "@/utils/ThemeProvider";
 import { GRID_SIZE } from "@/utils/constants";
-import { Play, Square, Sun, Moon } from "lucide-react";
+import { Play, Square, Sun, Moon, Keyboard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Tooltip,
@@ -27,6 +27,7 @@ interface DebuggingPanelProps {
   setPlacementMode: (mode: "none" | "start" | "goal") => void;
   onStartSimulation: () => void;
   children?: React.ReactNode;
+  setShowDocs: (show: boolean) => void;
 }
 
 const DebuggingPanel = ({
@@ -44,6 +45,7 @@ const DebuggingPanel = ({
   setPlacementMode,
   onStartSimulation,
   children,
+  setShowDocs,
 }: DebuggingPanelProps) => {
   const { theme, toggleTheme } = useTheme();
   const [obstacleCount, setObstacleCount] = useState(10);
@@ -60,7 +62,7 @@ const DebuggingPanel = ({
       initial={{ x: 100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="w-80 lg:w-96 h-full overflow-y-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-l border-gray-200 dark:border-gray-700"
+      className="w-80 lg:w-96 h-full overflow-y-auto bg-white/90 dark:bg-gray-900/95 backdrop-blur-md border-l border-gray-200 dark:border-gray-800"
     >
       <TooltipProvider>
         <div className="p-4 space-y-4">
@@ -69,35 +71,52 @@ const DebuggingPanel = ({
             <motion.h2 layout className="text-xl font-bold dark:text-white">
               Control Panel
             </motion.h2>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={toggleTheme}
-                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={theme}
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {theme === "dark" ? (
-                        <Sun className="w-5 h-5 text-amber-500" />
-                      ) : (
-                        <Moon className="w-5 h-5 text-blue-500" />
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle theme (Ctrl/⌘ + T)</p>
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowDocs(true)}
+                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Keyboard className="w-5 h-5" />
+                  </motion.button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View Documentation</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={theme}
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {theme === "dark" ? (
+                          <Sun className="w-5 h-5 text-amber-500" />
+                        ) : (
+                          <Moon className="w-5 h-5 text-blue-500" />
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </motion.button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Toggle theme (Ctrl/⌘ + T)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </motion.div>
 
           {/* Position Controls */}
@@ -219,12 +238,12 @@ const DebuggingPanel = ({
           {/* Status Monitor */}
           <motion.section
             layout
-            className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg"
+            className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg"
           >
             <motion.div layout className="space-y-2">
               <motion.div
                 layout
-                className="bg-white dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700"
+                className="bg-white dark:bg-gray-900 p-3 rounded-md border border-gray-200 dark:border-gray-700"
               >
                 <motion.p
                   layout
@@ -232,7 +251,10 @@ const DebuggingPanel = ({
                 >
                   Position
                 </motion.p>
-                <motion.p layout className="font-mono text-sm dark:text-white">
+                <motion.p
+                  layout
+                  className="font-mono text-sm text-gray-700 dark:text-gray-300"
+                >
                   X: {auvPosition.x}, Y: {auvPosition.y}
                 </motion.p>
               </motion.div>

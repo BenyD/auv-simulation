@@ -10,6 +10,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAlert } from "@/components/ui/AlertProvider";
 import { SimulationStatsDrawer } from "@/components/SimulationStatsDrawer";
 import { SimulationStats } from "@/types/simulation";
+import { DocumentationDrawer } from "@/components/DocumentationDrawer";
 
 // Update initial positions for the smaller grid
 const DEFAULT_START = { x: 4, y: 10 };
@@ -110,6 +111,9 @@ const Simulation = () => {
     pathHistory: [],
   });
 
+  // Add state for documentation drawer
+  const [showDocs, setShowDocs] = useState(false);
+
   // Add keyboard shortcuts
   useKeyboardShortcuts({
     toggleTheme,
@@ -135,11 +139,11 @@ const Simulation = () => {
   const handleGoalReached = useCallback(() => {
     const endTime = performance.now();
     const executionTime = endTime - simulationStats.startTime;
-    
-    const optimalLength = 
-      Math.abs(targetPosition.x - startPosition.x) + 
+
+    const optimalLength =
+      Math.abs(targetPosition.x - startPosition.x) +
       Math.abs(targetPosition.y - startPosition.y);
-    
+
     const stats: SimulationStats = {
       ...simulationStats,
       endTime,
@@ -160,7 +164,14 @@ const Simulation = () => {
       "The AUV has successfully reached its target!"
     );
     setIsRunning(false);
-  }, [simulationStats, pathHistory, targetPosition, startPosition, obstacles, showAlert]);
+  }, [
+    simulationStats,
+    pathHistory,
+    targetPosition,
+    startPosition,
+    obstacles,
+    showAlert,
+  ]);
 
   // Update size calculation
   useEffect(() => {
@@ -272,11 +283,11 @@ const Simulation = () => {
       ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
       // Set background
-      ctx.fillStyle = theme === "dark" ? "#1a1a1a" : "#ffffff";
+      ctx.fillStyle = theme === "dark" ? "#111827" : "#ffffff";
       ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
       // Draw grid
-      ctx.strokeStyle = theme === "dark" ? "#333333" : "#e5e5e5";
+      ctx.strokeStyle = theme === "dark" ? "#374151" : "#e5e5e5";
       ctx.lineWidth = 1;
 
       // Draw vertical lines
@@ -312,7 +323,7 @@ const Simulation = () => {
         // Draw label with subtle styling
         ctx.fillStyle =
           theme === "dark"
-            ? `rgba(229, 231, 235, ${opacity})`
+            ? `rgba(209, 213, 219, ${opacity})`
             : `rgba(31, 41, 55, ${opacity})`;
         ctx.fillText(
           label,
@@ -332,7 +343,7 @@ const Simulation = () => {
         // Draw label with subtle styling
         ctx.fillStyle =
           theme === "dark"
-            ? `rgba(229, 231, 235, ${opacity})`
+            ? `rgba(209, 213, 219, ${opacity})`
             : `rgba(31, 41, 55, ${opacity})`;
         ctx.fillText(
           label,
@@ -356,7 +367,7 @@ const Simulation = () => {
         }
       }
 
-      // Draw Obstacles with gradient
+      // Draw Obstacles with enhanced gradient
       obstacles.forEach((obs) => {
         const gradient = ctx.createRadialGradient(
           AXIS_MARGIN + obs.x * cellSize + cellSize / 2,
@@ -366,8 +377,13 @@ const Simulation = () => {
           AXIS_MARGIN + obs.y * cellSize + cellSize / 2,
           cellSize / 2
         );
-        gradient.addColorStop(0, "rgba(255, 0, 0, 0.8)");
-        gradient.addColorStop(1, "rgba(255, 0, 0, 0.2)");
+        if (theme === "dark") {
+          gradient.addColorStop(0, "rgba(239, 68, 68, 0.9)"); // red-500
+          gradient.addColorStop(1, "rgba(239, 68, 68, 0.2)");
+        } else {
+          gradient.addColorStop(0, "rgba(255, 0, 0, 0.8)");
+          gradient.addColorStop(1, "rgba(255, 0, 0, 0.2)");
+        }
         ctx.fillStyle = gradient;
         ctx.fillRect(
           AXIS_MARGIN + obs.x * cellSize,
@@ -584,12 +600,12 @@ const Simulation = () => {
             </div>
 
             {/* Coordinates - More Compact */}
-            <div className="absolute bottom-2 left-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm p-2 rounded shadow-lg border border-gray-200 dark:border-gray-700">
-              <div className="space-y-1 text-xs">
-                <p className="font-mono dark:text-gray-300">
+            <div className="absolute bottom-2 left-2 bg-white/80 dark:bg-gray-900/90 backdrop-blur-md p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="space-y-2">
+                <p className="font-mono text-gray-700 dark:text-gray-300">
                   AUV: {formatCoordinate(auvPosition.x, auvPosition.y)}
                 </p>
-                <p className="font-mono dark:text-gray-300">
+                <p className="font-mono text-gray-700 dark:text-gray-300">
                   Goal: {formatCoordinate(targetPosition.x, targetPosition.y)}
                 </p>
               </div>
@@ -613,6 +629,7 @@ const Simulation = () => {
         placementMode={placementMode}
         setPlacementMode={setPlacementMode}
         onStartSimulation={startSimulation}
+        setShowDocs={setShowDocs}
       >
         <button
           className="w-full py-2 px-4 rounded-lg font-medium bg-yellow-500 
@@ -626,6 +643,10 @@ const Simulation = () => {
         isOpen={showStats}
         onClose={() => setShowStats(false)}
         stats={simulationStats}
+      />
+      <DocumentationDrawer
+        isOpen={showDocs}
+        onClose={() => setShowDocs(false)}
       />
     </div>
   );
