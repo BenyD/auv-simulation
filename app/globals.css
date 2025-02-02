@@ -35,30 +35,30 @@ body {
     --radius: 0.5rem;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 75%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 212.7 26.8% 83.9%;
+    --chart-1: 217 91% 70%;
+    --chart-2: 142 71% 55%;
+    --chart-3: 47 95% 67%;
+    --chart-4: 269 75% 74%;
+    --chart-5: 326 85% 67%;
   }
 }
 
@@ -68,5 +68,29 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .transition-theme {
+    transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out,
+      color 0.3s ease-in-out, opacity 0.3s ease-in-out,
+      transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+  }
+
+  button,
+  input,
+  select,
+  a {
+    @apply transition-theme;
+  }
+
+  .dark input[type="number"] {
+    @apply bg-gray-800 text-gray-100 border-gray-700;
+  }
+
+  /* Add smooth scale transition for interactive elements */
+  .hover-scale {
+    @apply transition-all duration-200 hover:scale-102 active:scale-98;
   }
 }

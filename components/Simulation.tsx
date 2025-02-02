@@ -6,6 +6,8 @@ import DebuggingPanel from "./DebuggingPanel";
 import { GRID_SIZE } from "@/utils/constants";
 import { useTheme } from "@/utils/ThemeProvider";
 import { geistSans } from "@/utils/fonts";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useAlert } from "@/components/ui/AlertProvider";
 
 // Update initial positions for the smaller grid
 const DEFAULT_START = { x: 4, y: 10 };
@@ -63,7 +65,7 @@ const generateRandomObstacles = (count: number) => {
 };
 
 const Simulation = () => {
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [auvPosition, setAuvPosition] = useState(DEFAULT_START);
   const [lastAction, setLastAction] = useState<number | null>(null);
@@ -89,6 +91,15 @@ const Simulation = () => {
   const [pathHistory, setPathHistory] = useState<
     Array<{ x: number; y: number }>
   >([]);
+
+  // Add keyboard shortcuts
+  useKeyboardShortcuts({
+    toggleTheme,
+    toggleSimulation: () => setIsRunning(prev => !prev),
+    clearObstacles: () => setObstacles([]),
+  });
+
+  const { showAlert } = useAlert();
 
   // Update size calculation
   useEffect(() => {
@@ -135,9 +146,9 @@ const Simulation = () => {
             auvPosition.x === targetPosition.x &&
             auvPosition.y === targetPosition.y
           ) {
-            alert("Success! AUV reached the goal!");
+            handleGoalReached();
           } else {
-            alert("No valid path to goal!");
+            handleCollision();
           }
           return;
         }
@@ -426,11 +437,38 @@ const Simulation = () => {
     setPlacementMode("none");
   };
 
+  const handleCollision = () => {
+    if (!hasCollided) {
+      setHasCollided(true);
+      showAlert(
+        "error",
+        "Collision Detected",
+        "The AUV has collided with an obstacle!"
+      );
+      setIsRunning(false);
+    }
+  };
+
+  const handleGoalReached = () => {
+    showAlert(
+      "success",
+      "Goal Reached",
+      "The AUV has successfully reached its target!"
+    );
+    setIsRunning(false);
+  };
+
   const resetSimulation = () => {
     setAuvPosition(startPosition);
-    setHasCollided(false);
     setPathHistory([]);
+    setHasCollided(false);
+    setIsRunning(false);
     setLastAction(null);
+    showAlert(
+      "warning",
+      "Simulation Reset",
+      "The simulation has been reset to its initial state."
+    );
   };
 
   return (

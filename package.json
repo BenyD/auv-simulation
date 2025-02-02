@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "vercel",
+    "deploy:prod": "vercel --prod"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-slider": "^1.2.2",
     "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-tooltip": "^1.1.7",
     "@tensorflow/tfjs": "^4.x.x",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
