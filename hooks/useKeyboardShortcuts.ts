@@ -4,50 +4,61 @@ interface ShortcutConfig {
   toggleTheme: () => void;
   toggleSimulation: () => void;
   clearObstacles: () => void;
+  resetSimulation: () => void;
 }
 
 export function useKeyboardShortcuts({
   toggleTheme,
   toggleSimulation,
   clearObstacles,
+  resetSimulation,
 }: ShortcutConfig) {
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if focus is in an input
-      if (e.target instanceof HTMLInputElement) return;
+      // Ignore if focus is in an input or contentEditable
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) return;
 
-      const isMacCmd = navigator.platform.toLowerCase().includes('mac');
+      const isMac = navigator.platform.toLowerCase().includes('mac');
 
       switch (e.key.toLowerCase()) {
-        case 'l': // Changed from 't' to 'l' for "light/dark"
+        case 'd':
           if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             toggleTheme();
           }
           break;
         case ' ':
-          // Only trigger if not in an interactive element
-          if (!(e.target instanceof HTMLButtonElement) && 
-              !(e.target instanceof HTMLInputElement) && 
-              !(e.target instanceof HTMLTextAreaElement)) {
+          if (!(e.target instanceof HTMLButtonElement)) {
             e.preventDefault();
             toggleSimulation();
           }
           break;
-        case 'x': // Changed from 'c' to 'x' for "clear"
+        case 'x':
           if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             clearObstacles();
           }
           break;
+        case 'r':
+          if (e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            resetSimulation();
+          }
+          break;
         case 'escape':
-          e.preventDefault();
-          toggleSimulation();
+          if (!e.altKey && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            toggleSimulation();
+          }
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [toggleTheme, toggleSimulation, clearObstacles]);
+  }, [toggleTheme, toggleSimulation, clearObstacles, resetSimulation]);
 } 

@@ -146,11 +146,25 @@ const Simulation = () => {
   const [selectedAlgorithm, setSelectedAlgorithm] =
     useState<PathfindingAlgorithm>("astar");
 
+  const resetSimulation = () => {
+    setAuvPosition(startPosition);
+    setPathHistory([]);
+    setHasCollided(false);
+    setIsRunning(false);
+    setLastAction(null);
+    showAlert(
+      "warning",
+      "Simulation Reset",
+      "The simulation has been reset to its initial state."
+    );
+  };
+
   // Add keyboard shortcuts
   useKeyboardShortcuts({
     toggleTheme,
     toggleSimulation: () => setIsRunning((prev) => !prev),
     clearObstacles: () => setObstacles([]),
+    resetSimulation,
   });
 
   const { showAlert } = useAlert();
@@ -480,19 +494,6 @@ const Simulation = () => {
       setTargetPosition({ x, y });
     }
     setPlacementMode("none");
-  };
-
-  const resetSimulation = () => {
-    setAuvPosition(startPosition);
-    setPathHistory([]);
-    setHasCollided(false);
-    setIsRunning(false);
-    setLastAction(null);
-    showAlert(
-      "warning",
-      "Simulation Reset",
-      "The simulation has been reset to its initial state."
-    );
   };
 
   const startSimulation = () => {
