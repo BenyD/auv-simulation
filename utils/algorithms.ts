@@ -42,16 +42,39 @@ const hasCollisionAtPosition = (
   return obstacles.some((obs) => obs.x === pos.x && obs.y === pos.y);
 };
 
+// Add near other helper functions
+const detectCycle = (path: Position[], currentPos: Position): boolean => {
+  if (path.length < 4) return false;
+  
+  // Check last 4 positions for a 2-cell cycle
+  const last4 = path.slice(-4);
+  const posStrings = last4.map(p => `${p.x},${p.y}`);
+  const currentPosStr = `${currentPos.x},${currentPos.y}`;
+  
+  // Check if we're returning to a position we were at 2 moves ago
+  if (posStrings[1] === currentPosStr) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Update getNeighbors function to consider path history
 const getNeighbors = (
   pos: Position,
   obstacles: Set<string>,
-  visited: Set<string>
+  visited: Set<string>,
+  pathHistory: Position[] = []
 ): Position[] => {
   const directions = [
     { x: 0, y: -1 }, // up
-    { x: 1, y: 0 }, // right
-    { x: 0, y: 1 }, // down
+    { x: 1, y: 0 },  // right
+    { x: 0, y: 1 },  // down
     { x: -1, y: 0 }, // left
+    { x: 1, y: -1 }, // up-right
+    { x: 1, y: 1 },  // down-right
+    { x: -1, y: 1 }, // down-left
+    { x: -1, y: -1 } // up-left
   ];
 
   return directions
@@ -60,6 +83,7 @@ const getNeighbors = (
       y: pos.y + dir.y,
     }))
     .filter((newPos) => {
+      // Basic validity checks
       if (
         newPos.x < 0 ||
         newPos.x >= GRID_SIZE.width ||
@@ -72,6 +96,20 @@ const getNeighbors = (
       const posKey = `${newPos.x},${newPos.y}`;
       if (obstacles.has(posKey) || visited.has(posKey)) {
         return false;
+      }
+
+      // Prevent cycling
+      if (detectCycle(pathHistory, newPos)) {
+        return false;
+      }
+
+      // Check diagonal movement
+      if (Math.abs(newPos.x - pos.x) === 1 && Math.abs(newPos.y - pos.y) === 1) {
+        const corner1 = `${pos.x},${newPos.y}`;
+        const corner2 = `${newPos.x},${pos.y}`;
+        if (obstacles.has(corner1) || obstacles.has(corner2)) {
+          return false;
+        }
       }
 
       return true;
@@ -108,6 +146,114 @@ const getNewPosition = (current: Position, move: number): Position => {
       break; // Down
   }
   return newPos;
+};
+
+// Add near the top with other helper functions
+const smoothPath = (path: Position[], obstacles: Set<string>): Position[] => {
+  if (path.length <= 2) return path;
+  
+  const smoothed: Position[] = [path[0]];
+  let current = 0;
+  
+  while (current < path.length - 1) {
+    let furthest = path.length - 1;
+    let foundPath = false;
+    
+    // Look for longest valid segment
+    while (furthest > current) {
+      const start = path[current];
+      const end = path[furthest];
+      
+      if (isValidDirectPath(start, end, obstacles)) {
+        // Add intermediate points for long segments
+        const dist = Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
+        if (dist > 5) {
+          const mid = {
+            x: Math.round((start.x + end.x) / 2),
+            y: Math.round((start.y + end.y) / 2)
+          };
+          if (isValidDirectPath(start, mid, obstacles) && 
+              isValidDirectPath(mid, end, obstacles)) {
+            smoothed.push(mid);
+          }
+        }
+        smoothed.push(end);
+        current = furthest;
+        foundPath = true;
+        break;
+      }
+      furthest--;
+    }
+    
+    if (!foundPath) {
+      smoothed.push(path[current + 1]);
+      current++;
+    }
+  }
+  
+  return smoothed;
+};
+
+// Add helper function for path validation
+const isValidDirectPath = (start: Position, end: Position, obstacles: Set<string>): boolean => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
+  
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = Math.round(start.x + dx * t);
+    const y = Math.round(start.y + dy * t);
+    
+    if (obstacles.has(`${x},${y}`)) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+// Add this helper function near other utility functions
+export const calculateTacticalValue = (
+  pos: Position,
+  start: Position,
+  goal: Position,
+  existingObstacles: Set<string>
+): number => {
+  // Calculate distances
+  const distToStart = Math.hypot(pos.x - start.x, pos.y - start.y);
+  const distToGoal = Math.hypot(pos.x - goal.x, pos.y - goal.y);
+  const pathLine = Math.hypot(goal.x - start.x, goal.y - start.y);
+  
+  // Check if position is near the direct path between start and goal
+  const distToPath = Math.abs(
+    (goal.y - start.y) * pos.x - 
+    (goal.x - start.x) * pos.y + 
+    goal.x * start.y - 
+    goal.y * start.x
+  ) / pathLine;
+
+  // Calculate clustering with existing obstacles
+  let clusterPenalty = 0;
+  for (const obsKey of existingObstacles) {
+    const [ox, oy] = obsKey.split(',').map(Number);
+    const dist = Math.hypot(pos.x - ox, pos.y - oy);
+    if (dist < 3) clusterPenalty += (3 - dist) * 2;
+  }
+
+  // Scoring factors:
+  // - Prefer positions not too close or far from start/goal
+  // - Prefer positions near but not directly on the path
+  // - Avoid clustering obstacles together
+  // - Maintain minimum distances from start/goal
+  const score = 
+    (distToPath < 4 ? 5 : 0) + // Bonus for being near path
+    (distToStart > 5 ? 3 : 0) + // Bonus for minimum distance from start
+    (distToGoal > 5 ? 3 : 0) + // Bonus for minimum distance from goal
+    (distToPath > 1 ? 2 : 0) - // Penalty for being directly on path
+    clusterPenalty; // Penalty for clustering
+
+  return score;
 };
 
 // A* Implementation
@@ -147,14 +293,18 @@ export class AStarPathFinder implements PathFinder {
     startNode.f = startNode.g + startNode.h;
     openSet.push(startNode);
 
+    const pathHistory: Position[] = [start];
+
     while (openSet.length > 0) {
       openSet.sort((a, b) => a.f - b.f);
       const current = openSet.shift()!;
       nodesExplored++;
 
       if (current.x === goal.x && current.y === goal.y) {
+        const rawPath = reconstructPath(current);
+        const smoothedPath = smoothPath(rawPath, obstacleSet);
         return {
-          path: reconstructPath(current),
+          path: smoothedPath,
           nodesExplored,
           executionTime: performance.now() - startTime,
         };
@@ -162,22 +312,41 @@ export class AStarPathFinder implements PathFinder {
 
       closedSet.add(`${current.x},${current.y}`);
 
-      const neighbors = getNeighbors(current, obstacleSet, closedSet);
+      const neighbors = getNeighbors(
+        current,
+        obstacleSet,
+        closedSet,
+        pathHistory
+      );
+
       for (const neighbor of neighbors) {
-        const g = current.g + 1;
-        const h = this.heuristic(neighbor, goal);
-        const f = g + h;
+        const neighborKey = `${neighbor.x},${neighbor.y}`;
+        const existingNeighbor = openSet.find(n => `${n.x},${n.y}` === neighborKey);
+        
+        const tentativeG = current.g + (
+          Math.abs(neighbor.x - current.x) + Math.abs(neighbor.y - current.y) === 2 
+            ? 1.4 
+            : 1
+        );
 
-        const node: Node = {
-          x: neighbor.x,
-          y: neighbor.y,
-          g,
-          h,
-          f,
-          parent: current,
-        };
+        if (!existingNeighbor || tentativeG < existingNeighbor.g) {
+          const node: Node = {
+            x: neighbor.x,
+            y: neighbor.y,
+            g: tentativeG,
+            h: this.heuristic(neighbor, goal),
+            f: 0,
+            parent: current,
+          };
+          node.f = node.g + node.h;
 
-        openSet.push(node);
+          if (existingNeighbor) {
+            Object.assign(existingNeighbor, node);
+          } else {
+            openSet.push(node);
+          }
+        }
+        pathHistory.push(neighbor);
       }
     }
 
@@ -242,28 +411,29 @@ export class RRTPathFinder implements PathFinder {
     };
   }
 
-  private isValidPath(
-    from: Position,
-    to: Position,
-    obstacles: Set<string>
-  ): boolean {
+  private isValidPath(from: Position, to: Position, obstacles: Set<string>): boolean {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2; // Increase resolution
-
+    const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 4; // Increased resolution
+    
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const x = Math.round(from.x + dx * t);
       const y = Math.round(from.y + dy * t);
-
-      // Check bounds
-      if (x < 0 || x >= GRID_SIZE.width || y < 0 || y >= GRID_SIZE.height) {
-        return false;
-      }
-
-      // Check obstacles
-      if (obstacles.has(`${x},${y}`)) {
-        return false;
+      
+      // Enhanced safety margin check
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const checkX = x + dx;
+          const checkY = y + dy;
+          if (
+            checkX >= 0 && checkX < GRID_SIZE.width &&
+            checkY >= 0 && checkY < GRID_SIZE.height &&
+            obstacles.has(`${checkX},${checkY}`)
+          ) {
+            return false;
+          }
+        }
       }
     }
     return true;
@@ -271,120 +441,174 @@ export class RRTPathFinder implements PathFinder {
 
   private optimizePath(path: Position[]): Position[] {
     if (path.length <= 2) return path;
-
-    const optimizedPath: Position[] = [path[0]];
-    let currentPoint = 0;
-
-    while (currentPoint < path.length - 1) {
-      let furthestVisible = currentPoint + 1;
-
-      for (let i = path.length - 1; i > currentPoint; i--) {
-        if (this.isValidPath(path[currentPoint], path[i], this.obstacleSet)) {
-          furthestVisible = i;
+    
+    const smoothed: Position[] = [path[0]];
+    let current = 0;
+    
+    while (current < path.length - 1) {
+      let furthest = path.length - 1;
+      let foundPath = false;
+      
+      while (furthest > current) {
+        const start = path[current];
+        const end = path[furthest];
+        
+        if (this.isValidPath(start, end, this.obstacleSet)) {
+          // Add intermediate points for long segments
+          const dist = Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
+          if (dist > 6) {
+            const mid = {
+              x: Math.round((start.x + end.x) / 2),
+              y: Math.round((start.y + end.y) / 2)
+            };
+            if (this.isValidPath(start, mid, this.obstacleSet) && 
+                this.isValidPath(mid, end, this.obstacleSet)) {
+              smoothed.push(mid);
+            }
+          }
+          smoothed.push(end);
+          current = furthest;
+          foundPath = true;
           break;
         }
+        furthest--;
       }
-
-      optimizedPath.push(path[furthestVisible]);
-      currentPoint = furthestVisible;
+      
+      if (!foundPath) {
+        smoothed.push(path[current + 1]);
+        current++;
+      }
     }
-
-    return optimizedPath;
+    
+    return this.smoothPath(smoothed);
   }
 
-  findPath(
-    start: Position,
-    goal: Position,
-    obstacles: Position[]
-  ): PathfindingResult {
+  private smoothPath(path: Position[]): Position[] {
+    if (path.length <= 2) return path;
+    
+    const smoothed: Position[] = [];
+    let prevDirection = { x: 0, y: 0 };
+    
+    for (let i = 0; i < path.length; i++) {
+      if (i === 0 || i === path.length - 1) {
+        smoothed.push(path[i]);
+        continue;
+      }
+      
+      const currentDirection = {
+        x: path[i].x - path[i - 1].x,
+        y: path[i].y - path[i - 1].y
+      };
+      
+      const nextDirection = {
+        x: path[i + 1].x - path[i].x,
+        y: path[i + 1].y - path[i].y
+      };
+      
+      if (
+        currentDirection.x !== nextDirection.x ||
+        currentDirection.y !== nextDirection.y ||
+        currentDirection.x !== prevDirection.x ||
+        currentDirection.y !== prevDirection.y
+      ) {
+        smoothed.push(path[i]);
+      }
+      
+      prevDirection = currentDirection;
+    }
+    
+    return smoothed;
+  }
+
+  private reconstructPath(node: Node): Position[] {
+    const path: Position[] = [];
+    let current: Node | null = node;
+    
+    while (current !== null) {
+      path.unshift({ x: current.x, y: current.y });
+      current = current.parent;
+    }
+    
+    return path;
+  }
+
+  findPath(start: Position, goal: Position, obstacles: Position[]): PathfindingResult {
     const startTime = performance.now();
     let nodesExplored = 0;
-    const maxIterations = 2000; // Increased iterations
-    const stepSize = 2; // Maximum step size
-    const goalBias = 0.2; // Increased goal bias
+    const maxIterations = 5000; // Increased for better coverage
+    const stepSize = 2; // Adjusted for better exploration
+    const goalBias = 0.4; // Increased goal bias for faster convergence
+    const nearGoalThreshold = 3; // Slightly increased for better goal detection
 
     this.obstacleSet = new Set(obstacles.map((o) => `${o.x},${o.y}`));
-    const nodes: Node[] = [
-      {
-        x: start.x,
-        y: start.y,
-        g: 0,
-        h: 0,
-        f: 0,
-        parent: null,
-      },
-    ];
 
-    for (let i = 0; i < maxIterations; i++) {
-      nodesExplored++;
-
-      // Select target point with goal bias
-      const targetPoint =
-        Math.random() < goalBias ? goal : this.getRandomPoint();
-      const nearestNode = this.findNearestNode(targetPoint, nodes);
-
-      // Steer towards the target point
-      const newPoint = this.steer(
-        { x: nearestNode.x, y: nearestNode.y },
-        targetPoint,
-        stepSize
-      );
-
-      // Validate the path
-      if (this.isValidPath(nearestNode, newPoint, this.obstacleSet)) {
-        const newNode: Node = {
-          x: newPoint.x,
-          y: newPoint.y,
-          g: 0,
-          h: 0,
-          f: 0,
-          parent: nearestNode,
-        };
-        nodes.push(newNode);
-
-        // Check if we can reach the goal
-        if (
-          this.distance(newPoint, goal) < stepSize &&
-          this.isValidPath(newPoint, goal, this.obstacleSet)
-        ) {
-          const finalNode: Node = {
-            x: goal.x,
-            y: goal.y,
-            g: 0,
-            h: 0,
-            f: 0,
-            parent: newNode,
-          };
-
-          // Add path optimization before returning
-          if (finalNode) {
-            const rawPath = reconstructPath(finalNode);
-            const optimizedPath = this.optimizePath(rawPath);
-            return {
-              path: optimizedPath,
-              nodesExplored,
-              executionTime: performance.now() - startTime,
-            };
-          }
-        }
-      }
-    }
-
-    // If no path found, try to return best partial path
-    const closestToGoal = this.findNearestNode(goal, nodes);
-    if (closestToGoal) {
+    // Try direct path first
+    if (this.isValidPath(start, goal, this.obstacleSet)) {
       return {
-        path: reconstructPath(closestToGoal),
-        nodesExplored,
+        path: [start, goal],
+        nodesExplored: 1,
         executionTime: performance.now() - startTime,
       };
     }
 
+    // Fallback to A* if path is relatively simple
+    if (this.distance(start, goal) < 10 && obstacles.length < 5) {
+      return new AStarPathFinder().findPath(start, goal, obstacles);
+    }
+
+    // Enhanced RRT logic
+    const nodes: Node[] = [{ x: start.x, y: start.y, parent: null, g: 0, h: 0, f: 0 }];
+    let bestNode = nodes[0];
+    let bestDistance = this.distance(start, goal);
+
+    for (let i = 0; i < maxIterations; i++) {
+      nodesExplored++;
+      
+      // Adaptive goal bias based on progress
+      const adaptiveGoalBias = goalBias * (1 + bestDistance / this.distance(start, goal));
+      const targetPoint = Math.random() < adaptiveGoalBias ? goal : this.getRandomPoint();
+      
+      const nearestNode = this.findNearestNode(targetPoint, nodes);
+      const newPoint = this.steer({ x: nearestNode.x, y: nearestNode.y }, targetPoint, stepSize);
+
+      if (this.isValidPath(nearestNode, newPoint, this.obstacleSet)) {
+        const newNode: Node = {
+          x: newPoint.x,
+          y: newPoint.y,
+          parent: nearestNode,
+          g: 0, h: 0, f: 0
+        };
+        nodes.push(newNode);
+
+        const distToGoal = this.distance(newPoint, goal);
+        if (distToGoal < bestDistance) {
+          bestDistance = distToGoal;
+          bestNode = newNode;
+        }
+
+        if (distToGoal < nearGoalThreshold && this.isValidPath(newPoint, goal, this.obstacleSet)) {
+          const path = this.reconstructAndOptimizePath(newNode, goal);
+          return {
+            path,
+            nodesExplored,
+            executionTime: performance.now() - startTime,
+          };
+        }
+      }
+    }
+
+    // If no path found, return best partial path
     return {
-      path: [],
+      path: this.reconstructAndOptimizePath(bestNode, goal),
       nodesExplored,
       executionTime: performance.now() - startTime,
     };
+  }
+
+  private reconstructAndOptimizePath(node: Node, goal: Position): Position[] {
+    const path = this.reconstructPath(node);
+    path.push(goal);
+    return this.optimizePath(path);
   }
 }
 
@@ -643,30 +867,35 @@ export class DRLPathFinder implements PathFinder {
   private optimizePath(path: Position[], obstacles: Position[]): Position[] {
     if (path.length <= 2) return path;
 
-    const optimized: Position[] = [path[0]];
+    const smoothed: Position[] = [path[0]];
     let current = 0;
-
+    
     while (current < path.length - 1) {
-      let furthest = current + 1;
-      for (let i = path.length - 1; i > current; i--) {
-        const canConnect = !this.hasObstacleBetween(
-          path[current],
-          path[i],
-          obstacles
-        );
-        if (canConnect) {
-          furthest = i;
+      let furthest = path.length - 1;
+      
+      while (furthest > current) {
+        const start = path[current];
+        const end = path[furthest];
+        
+        // Check if direct path is possible
+        if (this.isValidDirectPath(start, end, obstacles)) {
+          smoothed.push(end);
+          current = furthest;
           break;
         }
+        furthest--;
       }
-      optimized.push(path[furthest]);
-      current = furthest;
+      
+      if (furthest === current) {
+        smoothed.push(path[current + 1]);
+        current++;
+      }
     }
-
-    return optimized;
+    
+    return smoothed;
   }
 
-  private hasObstacleBetween(
+  private isValidDirectPath(
     start: Position,
     end: Position,
     obstacles: Position[]
@@ -674,16 +903,18 @@ export class DRLPathFinder implements PathFinder {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const steps = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
-
-    for (let i = 0; i <= steps; i++) {
+    
+    for (let i = 1; i < steps; i++) {
       const t = i / steps;
       const x = Math.round(start.x + dx * t);
       const y = Math.round(start.y + dy * t);
+      
       if (hasCollisionAtPosition({ x, y }, obstacles)) {
-        return true;
+        return false;
       }
     }
-    return false;
+    
+    return true;
   }
 
   getName(): string {
